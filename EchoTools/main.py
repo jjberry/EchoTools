@@ -1,11 +1,11 @@
 '''
 Created on May 29, 2013
 
-@author: Jeff
+@author: Jeff Berry
 '''
 import sys, os
 from scipy.sparse.csgraph import _validation #needed for bug in pyinstaller
-from PyQt4.QtGui import QApplication
+from PyQt4.QtGui import QApplication, QFileDialog
 
 from controlPanel import ControlPanel
 from colorConfig import ColorConfig
@@ -13,7 +13,9 @@ from plotSignals import PlotSignals
 
 def main():
     app = QApplication(sys.argv)
-    datadir = 'c:/Users/Jeff/Desktop/shared/ALE_00/ALE_PR00-png/'
+    
+    datadir = QFileDialog.getExistingDirectory(None, caption='Choose a data directory')
+    datadir = str(datadir)
     control = ControlPanel(datadir)
     posCC = ColorConfig('Positive color filter', 10, 30, 
                         os.path.join(control.datadir, control.pngs[control.onsets[0]]),

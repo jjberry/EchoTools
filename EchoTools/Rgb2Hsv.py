@@ -1,9 +1,11 @@
 '''
 Created on May 29, 2013
 
-Conversion from RGB to HSV colorspace
+Conversion from RGB to HSV color space
+Taken from
+http://stackoverflow.com/questions/4890373/detecting-thresholds-in-hsv-color-space-from-rgb-using-python-pil/4890878#4890878
 
-@author: Jeff
+@author: Jeff Berry
 '''
 import Image
 import numpy as np 

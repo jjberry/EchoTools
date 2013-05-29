@@ -1,11 +1,15 @@
 '''
 Created on May 29, 2013
 
-@author: Jeff
+Displays the mean pixel counts of positive and negative colors defined by the 
+ColorConfig objects. The results are displayed as a percentage of the total ROI.
+Standard deviations and significant differences (from a t-test) can be optionally
+displayed. The title can be changed by the user, and the plot can be saved.
+
+@author: Jeff Berry
 '''
 import numpy as np
 from scipy import stats
-
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 import matplotlib
@@ -15,7 +19,16 @@ from matplotlib.figure import Figure
 from matplotlib import collections
 
 class PlotSignals(QMainWindow):
+    '''
+    A widget for displaying results
+    '''
+    ########################
+    # Initializing Methods #
+    ########################
     def __init__(self, posCC, negCC, control, parent=None):
+        '''
+        Initializes internal variables
+        '''
         QMainWindow.__init__(self, parent)
         self.setWindowTitle('Results') 
         self.posCC = posCC
@@ -23,11 +36,60 @@ class PlotSignals(QMainWindow):
         self.sequence = control.sequence
         self.onset = control.onset
         self.control = control
+        self.title = 'Results'
         self.STD = True
         self.TTEST = True
+        
         self.createMainFrame()
 
+    def createMainFrame(self):
+        '''
+        Creates the main window
+        '''
+        # Widgets 
+        self.main_frame = QWidget()
+        self.fig = Figure()
+        self.canvas = FigureCanvas(self.fig)
+        self.canvas.setParent(self.main_frame)
+        self.axes = self.fig.add_subplot(111)
+        self.mpl_toolbar = NavigationToolbar(self.canvas, self.main_frame)
+        self.stdCB = QCheckBox("Show standard deviation")
+        self.stdCB.setChecked(True)        
+        self.ttestCB = QCheckBox("Show significant difference")
+        self.ttestCB.setChecked(True)
+        self.titleText = QLineEdit()
+        self.titleText.setText(self.title)
+
+        # Connections 
+        self.posCC.plotSignal.connect(self.onDraw)
+        self.negCC.plotSignal.connect(self.onDraw)
+        self.control.sequenceChanged.connect(self.onSequenceChanged)
+        self.control.closeSignal.connect(self.close)
+        self.control.exportData.connect(self.onExport)
+        self.connect(self.stdCB, SIGNAL('stateChanged(int)'), self.onStdChecked)
+        self.connect(self.ttestCB, SIGNAL('stateChanged(int)'), self.onTtestChecked)
+        self.connect(self.titleText, SIGNAL('editingFinished()'), self.onChangeTitle)
+        
+        # Layouts 
+        vbox = QVBoxLayout()
+        vbox.addWidget(self.canvas)
+        vbox.addWidget(self.mpl_toolbar)
+        vbox.addWidget(self.stdCB)
+        vbox.addWidget(self.ttestCB)
+
+        self.main_frame.setLayout(vbox)
+        self.setCentralWidget(self.main_frame)
+
+    #####################
+    #  Internal Methods #
+    #####################
     def getResults(self):
+        '''
+        Helper function that extracts the pixel counts from the images.
+        Currently set up to calculate results from 2 ColorConfig objects.
+        returns 4 nRepetitions x nFrames numpy arrays, 2 for each ROI 
+        (pos and neg pixels). 
+        '''
         maxval = len(self.posCC.ROI[self.posCC.ROI])
         posRange = (2, 50)
         negRange = (59, 118)
@@ -59,8 +121,14 @@ class PlotSignals(QMainWindow):
         negVal2 = np.array(negVal2)
         
         return posVal1, negVal1, posVal2, negVal2
-    
+
+    #########
+    # Slots #
+    #########    
     def onDraw(self):
+        '''
+        Draws the plot on the MPL canvas widget
+        '''
         self.axes.clear()
         fs = 83.0
         step = 1.0 / fs
@@ -100,10 +168,15 @@ class PlotSignals(QMainWindow):
         self.axes.set_yticks([0.5, 1.5])
         self.axes.set_yticklabels(['Neg ROI', 'Pos ROI'])
         self.axes.set_ylim(-0.25, 2.25)
+        self.axes.set_title(self.title)
 
         self.canvas.draw()
 
     def onExport(self, fname):
+        '''
+        Exports the values used to create the current plot (unaveraged signals)
+        to a comma-separated plaintext file.
+        '''
         posVal1, negVal1, posVal2, negVal2 = self.getResults()
         out = open(fname, 'w')
         out.write('signalName,posNeg,')
@@ -120,45 +193,33 @@ class PlotSignals(QMainWindow):
         out.close()
 
     def onSequenceChanged(self, sequence, onset):
+        '''
+        Catches signal from ControlPanel when sequence has changed.
+        '''
         self.sequence = sequence
         self.onset = onset
         self.onDraw()
     
     def onStdChecked(self):
+        '''
+        Catches the signal from the show standard deviations check box
+        '''
         self.STD = not self.STD
         self.onDraw()
     
     def onTtestChecked(self):
+        '''
+        Catches the signal from the show significant differences check box
+        '''
         self.TTEST = not self.TTEST
         self.onDraw()
-        
-    def createMainFrame(self):
-        self.main_frame = QWidget()
-        self.fig = Figure()
-        self.canvas = FigureCanvas(self.fig)
-        self.canvas.setParent(self.main_frame)
-        self.axes = self.fig.add_subplot(111)
-
-        self.mpl_toolbar = NavigationToolbar(self.canvas, self.main_frame)
-
-        self.stdCB = QCheckBox("Show standard deviation")
-        self.stdCB.setChecked(True)        
-        self.ttestCB = QCheckBox("Show significant difference")
-        self.ttestCB.setChecked(True)
-
-        self.posCC.plotSignal.connect(self.onDraw)
-        self.negCC.plotSignal.connect(self.onDraw)
-        self.control.sequenceChanged.connect(self.onSequenceChanged)
-        self.control.closeSignal.connect(self.close)
-        self.control.exportData.connect(self.onExport)
-        self.connect(self.stdCB, SIGNAL('stateChanged(int)'), self.onStdChecked)
-        self.connect(self.ttestCB, SIGNAL('stateChanged(int)'), self.onTtestChecked)
-        
-        vbox = QVBoxLayout()
-        vbox.addWidget(self.canvas)
-        vbox.addWidget(self.mpl_toolbar)
-        vbox.addWidget(self.stdCB)
-        vbox.addWidget(self.ttestCB)
-
-        self.main_frame.setLayout(vbox)
-        self.setCentralWidget(self.main_frame)
+ 
+    def onChangeTitle(self):
+        '''
+        Changes the title of the plot when the user changes the text
+        '''
+        title = str(self.titleText.text())
+        if title != self.title:
+            self.title = title
+            self.onDraw()
+           
