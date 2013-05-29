@@ -43,11 +43,12 @@ class ColorConfig(QMainWindow):
         self.control = control
         self.radius = 50
         self.invert = False
-        self.H = self.convertImg(self.imgfile)
         valid = np.load('validinds.npy')
         self.valid = valid.reshape((600,800), order='F')
         self.notvalid = np.logical_not(self.valid)
-        self.USEALL = True
+        self.USEALL = True 
+        self.H = self.convertImg(self.imgfile)
+
 
         self.createMainFrame()
         self.onDraw()

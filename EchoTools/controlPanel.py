@@ -62,7 +62,6 @@ class ControlPanel(QMainWindow):
         self.fileInfo = QLabel()
         self.fileInfo.setText(os.path.join(self.datadir, self.pngs[self.current]))
         self.prevButton = QPushButton('&Previous image')
-        self.connect(self.prevButton, SIGNAL('clicked()'), self.onPrevClicked)
         self.nextButton = QPushButton('&Next image')
         gotoLabel = QLabel()
         gotoLabel.setText('Go to image:')
@@ -89,14 +88,15 @@ class ControlPanel(QMainWindow):
         self.onsetText = QLineEdit()
         self.onsetText.setMinimumWidth(100)
         self.onsetText.setText(str(' '.join(map(str, list(self.onsets+1))))) 
+        self.calculate = QPushButton('&Recalculate Sequence')
         
         # Connections
+        self.connect(self.prevButton, SIGNAL('clicked()'), self.onPrevClicked)
         self.connect(self.nextButton, SIGNAL('clicked()'), self.onNextClicked)
         self.connect(self.gotoFile, SIGNAL('editingFinished()'), self.onGotoFile)
         self.connect(self.radiusText, SIGNAL('editingFinished()'), self.onRadiusChanged)
-        self.connect(self.before, SIGNAL('editingFinished()'), self.onSequenceChanged)
-        self.connect(self.after, SIGNAL('editingFinished()'), self.onSequenceChanged)
         self.connect(self.onsetText, SIGNAL('editingFinished()'), self.onOnsetsChanged)
+        self.connect(self.calculate, SIGNAL('clicked()'), self.onSequenceChanged)
 
         # Layouts        
         hbox = QHBoxLayout()
@@ -132,6 +132,7 @@ class ControlPanel(QMainWindow):
         vbox.addLayout(onsetHBox)
         vbox.addLayout(radHBox)
         vbox.addLayout(limHBox)
+        vbox.addWidget(self.calculate)
 
         self.main_frame.setLayout(vbox)
         self.setCentralWidget(self.main_frame)

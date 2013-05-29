@@ -15,7 +15,7 @@ from matplotlib.widgets import Lasso
 from matplotlib.nxutils import points_inside_poly
 
 import numpy as np
-from PIL import Image
+import Image
 
 class ROISelect(QMainWindow):
     def __init__(self, parent=None):

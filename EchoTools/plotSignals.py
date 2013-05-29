@@ -57,6 +57,7 @@ class PlotSignals(QMainWindow):
         self.stdCB.setChecked(True)        
         self.ttestCB = QCheckBox("Show significant difference")
         self.ttestCB.setChecked(True)
+        titleLabel = QLabel('Set Title:')
         self.titleText = QLineEdit()
         self.titleText.setText(self.title)
 
@@ -71,11 +72,15 @@ class PlotSignals(QMainWindow):
         self.connect(self.titleText, SIGNAL('editingFinished()'), self.onChangeTitle)
         
         # Layouts 
+        hbox = QHBoxLayout()
+        hbox.addWidget(titleLabel)
+        hbox.addWidget(self.titleText)
         vbox = QVBoxLayout()
         vbox.addWidget(self.canvas)
         vbox.addWidget(self.mpl_toolbar)
         vbox.addWidget(self.stdCB)
         vbox.addWidget(self.ttestCB)
+        vbox.addLayout(hbox)
 
         self.main_frame.setLayout(vbox)
         self.setCentralWidget(self.main_frame)
