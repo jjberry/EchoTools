@@ -15,6 +15,9 @@ from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
 from Rgb2Hsv import RGB2HSV
+from colorConfig import ColorConfig
+from plotSignals import PlotSignals
+from ROISelect import ROISelect
 
 class ControlPanel(QMainWindow):
     '''
@@ -44,17 +47,38 @@ class ControlPanel(QMainWindow):
         self.radius = 50
         self.getSequence()
         self.current = self.onsets[0] 
+        self.ROItype = ''
         
         self.createMenu()
         self.createMainFrame()
-        self.onDraw()
+        self.onDraw()        
+        #self.createSubWindows()
 
+    def createSubWindows(self):
+        ROIs = []
+        if self.ROItype == 'Functional':
+            for i in range(self.nROI):
+                posCC = ColorConfig('ROI %d'%(i+1), 10, 30, os.path.join(self.datadir, self.pngs[self.onsets[0]]), self)
+                ROIs.append(posCC)
+                self.MDI.addSubWindow(posCC)               
+        elif self.ROItype == 'Anatomical' :
+            for i in range(self.nROI):
+                posCC = ROISelect('ROI %d'%(i+1), os.path.join(self.datadir, self.pngs[self.onsets[0]]), self)
+                ROIs.append(posCC)
+        plotWin = PlotSignals(ROIs, self)
+        self.MDI.addSubWindow(plotWin)
+        self.MDI.cascadeSubWindows()
+        for i in range(self.nROI):
+            ROIs[i].show()
+        plotWin.show()
+        
     def createMainFrame(self):
         '''
         Creates the main window
         '''
         # Widgets 
         self.main_frame = QWidget()
+        self.MDI = QMdiArea()
         self.fig = Figure()
         self.canvas = FigureCanvas(self.fig)
         self.canvas.setParent(self.main_frame)
@@ -89,6 +113,14 @@ class ControlPanel(QMainWindow):
         self.onsetText.setMinimumWidth(100)
         self.onsetText.setText(str(' '.join(map(str, list(self.onsets+1))))) 
         self.calculate = QPushButton('&Recalculate Sequence')
+        self.ROItypeCombo = QComboBox()
+        self.ROItypeCombo.addItems(['', 'Anatomical', 'Functional'])
+        ROItypetext = QLabel('Type of ROI:')
+        self.nROItext = QLineEdit()
+        self.nROItext.setMinimumWidth(50)
+        self.nROItext.setText('2')
+        nROItextLabel = QLabel('number of ROIs:')
+        self.makeSubwins = QPushButton('Show')
         
         # Connections
         self.connect(self.prevButton, SIGNAL('clicked()'), self.onPrevClicked)
@@ -97,6 +129,8 @@ class ControlPanel(QMainWindow):
         self.connect(self.radiusText, SIGNAL('editingFinished()'), self.onRadiusChanged)
         self.connect(self.onsetText, SIGNAL('editingFinished()'), self.onOnsetsChanged)
         self.connect(self.calculate, SIGNAL('clicked()'), self.onSequenceChanged)
+        self.connect(self.ROItypeCombo, SIGNAL('activated(QString)'), self.onCombo)
+        self.connect(self.makeSubwins, SIGNAL('clicked()'), self.onShow)
 
         # Layouts        
         hbox = QHBoxLayout()
@@ -123,6 +157,11 @@ class ControlPanel(QMainWindow):
         gotoHBox.setAlignment(gotoLabel, Qt.AlignVCenter)  
         gotoHBox.addWidget(self.gotoFile)  
         gotoHBox.setAlignment(self.gotoFile, Qt.AlignVCenter)  
+        roiHBox = QHBoxLayout()
+        roiHBox.addWidget(ROItypetext)
+        roiHBox.addWidget(self.ROItypeCombo)
+        roiHBox.addWidget(nROItextLabel)
+        roiHBox.addWidget(self.nROItext)
         vbox = QVBoxLayout()
         vbox.addWidget(self.canvas)
         vbox.addWidget(self.fileInfo)
@@ -133,8 +172,13 @@ class ControlPanel(QMainWindow):
         vbox.addLayout(radHBox)
         vbox.addLayout(limHBox)
         vbox.addWidget(self.calculate)
+        vbox.addLayout(roiHBox)
+        vbox.addWidget(self.makeSubwins)
+        mainHBox = QHBoxLayout()
+        mainHBox.addLayout(vbox)
+        mainHBox.addWidget(self.MDI)
 
-        self.main_frame.setLayout(vbox)
+        self.main_frame.setLayout(mainHBox)
         self.setCentralWidget(self.main_frame)
 
     def createMenu(self):
@@ -229,6 +273,14 @@ class ControlPanel(QMainWindow):
     #########
     # Slots #
     #########    
+    def onShow(self):
+        if self.ROItype != '':
+            self.nROI = int(str(self.nROItext.text()))
+            self.createSubWindows()
+        
+    def onCombo(self, text):
+        self.ROItype = str(text)
+    
     def onDraw(self):
         '''
         Shows the current RGB image

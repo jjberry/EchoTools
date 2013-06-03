@@ -17,62 +17,95 @@ from matplotlib.nxutils import points_inside_poly
 import numpy as np
 import Image
 
-class ROISelect(QMainWindow):
-    def __init__(self, parent=None):
-        QMainWindow.__init__(self, parent)
-        self.setWindowTitle('ROI Select')
+class ROISelect(QMdiSubWindow):
+    ###########
+    # Signals #
+    ###########
+    plotSignal = pyqtSignal()
 
+    ########################
+    # Initializing Methods #
+    ########################
+    def __init__(self, title, imgfile, control, parent=None):
+        '''
+        Initializes internal variables
+        '''
+        QMdiSubWindow.__init__(self, parent)
+        self.setWindowTitle(title)
+        self.imgfile = imgfile
+        self.control = control
+        self.xys = []
+        self.ROI = np.zeros((600,800)).astype(np.bool)
+        for i in range(800):
+            for j in range(600):
+                self.xys.append((i,j))
         self.create_main_frame()
+        self.onDraw()
 
     def create_main_frame(self):
+        '''
+        Creates the main window
+        '''
+        # Widgets 
         self.main_frame = QWidget()
-
-        self.dpi = 100
-        self.fig = Figure(dpi=self.dpi)
+        self.fig = Figure()
         self.canvas = FigureCanvas(self.fig)
         self.canvas.setParent(self.main_frame)
-
         self.axes = self.fig.add_subplot(111)
-
-        img = Image.open('c:/Users/Jeff/Desktop/shared/ALE_02/test.jpg')
-        img = np.asarray(img)
-        self.axes.imshow(img)
-
-        self.xys = []
-        for i in range(img.shape[1]):
-            for j in range(img.shape[0]):
-                self.xys.append((i,j))
-
-        self.cid = self.canvas.mpl_connect('button_press_event', self.onpress)
-
         self.mpl_toolbar = NavigationToolbar(self.canvas, self.main_frame)
+        self.reset = QPushButton('&Reset')
+        
+        # Connections
+        self.cid = self.canvas.mpl_connect('button_press_event', self.onpress)
+        self.control.imageChanged.connect(self.onImageChanged)
+        self.control.closeSignal.connect(self.close)
+        self.connect(self.reset, SIGNAL('clicked()'), self.onReset)
 
+        # Layouts
         vbox = QVBoxLayout()
         vbox.addWidget(self.canvas)
         vbox.addWidget(self.mpl_toolbar)
+        vbox.addWidget(self.reset)
 
         self.main_frame.setLayout(vbox)
-        self.setCentralWidget(self.main_frame)
+        self.setWidget(self.main_frame)
 
-    def callback(self, verts):
+    #########
+    # Slots #
+    #########
+    def onReset(self):
+        self.ROI = np.zeros((600,800)).astype(np.bool)
+        self.cid = self.canvas.mpl_connect('button_press_event', self.onpress)
+        self.onDraw()
+
+    def onDraw(self):
+        self.axes.clear()
+        img = Image.open(self.imgfile)
+        img = np.asarray(img)
+        self.axes.imshow(img)  
+        self.axes.imshow(self.ROI, alpha=0.1, cmap='gray')
+        self.plotSignal.emit()
+        self.canvas.draw()
+      
+    def getROI(self, verts):
         ind = points_inside_poly(self.xys, verts)
         self.canvas.draw_idle()
         self.canvas.widgetlock.release(self.lasso)
         del self.lasso
-        self.ind = ind
-        np.save('c:/Users/Jeff/Desktop/shared/ALE_02/TEST_ROI.npy', self.ind)
-        self.ind = self.ind.reshape((600,800), order='F')
-        self.axes.imshow(self.ind, alpha=0.1, cmap='gray')
+        self.ROI = ind
+        self.ROI = self.ROI.reshape((600,800), order='F')
+        self.canvas.mpl_disconnect(self.cid)
+        self.onDraw()
 
     def onpress(self, event):
         if self.canvas.widgetlock.locked(): return
         if event.inaxes is None: return
-        self.lasso = Lasso(event.inaxes, (event.xdata, event.ydata), self.callback)
+        self.lasso = Lasso(event.inaxes, (event.xdata, event.ydata), self.getROI)
         self.canvas.widgetlock(self.lasso)
         
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    form = ROISelect()
-    form.show()
-    app.exec_()
-
+    def onImageChanged(self, filename):
+        '''
+        Catches the signal from the ControlPanel that the current image has changed
+        '''
+        self.imgfile = str(filename)
+        self.onDraw()

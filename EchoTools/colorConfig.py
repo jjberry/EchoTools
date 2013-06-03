@@ -19,7 +19,7 @@ from matplotlib.figure import Figure
 
 from Rgb2Hsv import RGB2HSV
 
-class ColorConfig(QMainWindow):
+class ColorConfig(QMdiSubWindow):
     '''
     A widget for defining HSV color boundaries used in calculating the functional ROI
     '''
@@ -35,7 +35,7 @@ class ColorConfig(QMainWindow):
         '''
         Initializes internal variables
         '''
-        QMainWindow.__init__(self, parent)
+        QMdiSubWindow.__init__(self, parent)
         self.setWindowTitle(title)
         self.lower = lower
         self.upper = upper
@@ -48,7 +48,6 @@ class ColorConfig(QMainWindow):
         self.notvalid = np.logical_not(self.valid)
         self.USEALL = True 
         self.H = self.convertImg(self.imgfile)
-
 
         self.createMainFrame()
         self.onDraw()
@@ -113,7 +112,7 @@ class ColorConfig(QMainWindow):
         vbox.addLayout(up_hbox)
 
         self.main_frame.setLayout(vbox)
-        self.setCentralWidget(self.main_frame)
+        self.setWidget(self.main_frame)
 
     #####################
     #  Internal Methods #

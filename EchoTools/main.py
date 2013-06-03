@@ -10,6 +10,7 @@ from PyQt4.QtGui import QApplication, QFileDialog
 from controlPanel import ControlPanel
 from colorConfig import ColorConfig
 from plotSignals import PlotSignals
+from ROISelect import ROISelect
 
 def main():
     app = QApplication(sys.argv)
@@ -17,18 +18,8 @@ def main():
     datadir = QFileDialog.getExistingDirectory(None, caption='Choose a data directory')
     datadir = str(datadir)
     control = ControlPanel(datadir)
-    posCC = ColorConfig('Positive color filter', 10, 30, 
-                        os.path.join(control.datadir, control.pngs[control.onsets[0]]),
-                        control)
-    negCC = ColorConfig('Negative color filter', 60, 80, 
-                        os.path.join(control.datadir, control.pngs[control.onsets[0]]),
-                        control)
-    plotWin = PlotSignals(posCC, negCC, control)
 
     control.show()
-    posCC.show()
-    negCC.show()
-    plotWin.show()
 
     app.exec_()
 
