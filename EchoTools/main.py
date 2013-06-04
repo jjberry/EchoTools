@@ -7,19 +7,17 @@ import sys, os
 from scipy.sparse.csgraph import _validation #needed for bug in pyinstaller
 from PyQt4.QtGui import QApplication, QFileDialog
 
+from startWindow import StartUpWindow
 from controlPanel import ControlPanel
-from colorConfig import ColorConfig
-from plotSignals import PlotSignals
-from ROISelect import ROISelect
 
 def main():
     app = QApplication(sys.argv)
     
-    datadir = QFileDialog.getExistingDirectory(None, caption='Choose a data directory')
-    datadir = str(datadir)
-    control = ControlPanel(datadir)
-
-    control.show()
+    startwin = StartUpWindow()
+    if startwin.exec_():    
+        args = startwin.getArgs()
+        control = ControlPanel(args)
+        control.show()
 
     app.exec_()
 

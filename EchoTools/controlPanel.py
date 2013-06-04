@@ -18,6 +18,7 @@ from Rgb2Hsv import RGB2HSV
 from colorConfig import ColorConfig
 from plotSignals import PlotSignals
 from ROISelect import ROISelect
+from maxMovement import MaxMovement
 
 class ControlPanel(QMainWindow):
     '''
@@ -35,15 +36,15 @@ class ControlPanel(QMainWindow):
     ########################
     # Initializing Methods #
     ########################    
-    def __init__(self, datadir, parent=None):
+    def __init__(self, args, parent=None):
         '''
         Initializes internal variables
         '''
         QMainWindow.__init__(self, parent)
         self.setWindowTitle('Parameter control') 
-        self.datadir = datadir
-        self.framesBefore = 6
-        self.framesAfter = 10
+        self.datadir = args[0]
+        self.framesBefore = args[1]
+        self.framesAfter = args[2]
         self.radius = 50
         self.getSequence()
         self.current = self.onsets[0] 
@@ -52,19 +53,23 @@ class ControlPanel(QMainWindow):
         self.createMenu()
         self.createMainFrame()
         self.onDraw()        
-        #self.createSubWindows()
 
     def createSubWindows(self):
         ROIs = []
-        if self.ROItype == 'Functional':
+        if self.ROItype == 'Color Interval':
             for i in range(self.nROI):
                 posCC = ColorConfig('ROI %d'%(i+1), 10, 30, os.path.join(self.datadir, self.pngs[self.onsets[0]]), self)
                 ROIs.append(posCC)
                 self.MDI.addSubWindow(posCC)               
-        elif self.ROItype == 'Anatomical' :
+        elif self.ROItype == 'Hand Drawn' :
             for i in range(self.nROI):
                 posCC = ROISelect('ROI %d'%(i+1), os.path.join(self.datadir, self.pngs[self.onsets[0]]), self)
                 ROIs.append(posCC)
+                self.MDI.addSubWindow(posCC)
+        elif self.ROItype == 'Maximum Movement':
+            posCC = MaxMovement('ROI 1', os.path.join(self.datadir, self.pngs[self.onsets[0]]), self)
+            ROIs.append(posCC)
+            self.MDI.addSubWindow(posCC)
         plotWin = PlotSignals(ROIs, self)
         self.MDI.addSubWindow(plotWin)
         self.MDI.cascadeSubWindows()
@@ -101,12 +106,12 @@ class ControlPanel(QMainWindow):
         beforeLabel.setText('Frames before onset:')
         self.before = QLineEdit()
         self.before.setMinimumWidth(100)
-        self.before.setText('6')
+        self.before.setText(str(self.framesBefore))
         afterLabel = QLabel()
         afterLabel.setText('Frames after onset:')
         self.after = QLineEdit()
         self.after.setMinimumWidth(100)
-        self.after.setText('10')
+        self.after.setText(str(self.framesAfter))
         onsetLabel = QLabel()
         onsetLabel.setText('Onsets:')
         self.onsetText = QLineEdit()
@@ -114,7 +119,7 @@ class ControlPanel(QMainWindow):
         self.onsetText.setText(str(' '.join(map(str, list(self.onsets+1))))) 
         self.calculate = QPushButton('&Recalculate Sequence')
         self.ROItypeCombo = QComboBox()
-        self.ROItypeCombo.addItems(['', 'Anatomical', 'Functional'])
+        self.ROItypeCombo.addItems(['', 'Color Interval', 'Hand Drawn', 'Maximum Movement'])
         ROItypetext = QLabel('Type of ROI:')
         self.nROItext = QLineEdit()
         self.nROItext.setMinimumWidth(50)
