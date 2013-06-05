@@ -89,6 +89,7 @@ class ColorConfig(QMdiSubWindow):
         self.control.imageChanged.connect(self.onImageChanged)
         self.control.radiusChanged.connect(self.onRadiusChanged)
         self.control.closeSignal.connect(self.close)
+        self.control.sequenceChanged.connect(self.onSequenceChanged)
         self.connect(self.low_slider, SIGNAL('valueChanged(int)'), self.onSlider)
         self.connect(self.up_slider, SIGNAL('valueChanged(int)'), self.onSlider)
         self.connect(self.low_text, SIGNAL('editingFinished()'), self.onEdit)
@@ -232,3 +233,6 @@ class ColorConfig(QMdiSubWindow):
         self.USEALL = not self.USEALL
         self.onDraw() 
         
+    def onSequenceChanged(self, sequence, onset):
+        self.onDraw()    
+    

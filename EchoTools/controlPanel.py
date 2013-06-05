@@ -56,20 +56,15 @@ class ControlPanel(QMainWindow):
 
     def createSubWindows(self):
         ROIs = []
-        if self.ROItype == 'Color Interval':
-            for i in range(self.nROI):
+        for i in range(self.nROI):
+            if self.ROItype == 'Color Interval':
                 posCC = ColorConfig('ROI %d'%(i+1), 10, 30, os.path.join(self.datadir, self.pngs[self.onsets[0]]), self)
-                ROIs.append(posCC)
-                self.MDI.addSubWindow(posCC)               
-        elif self.ROItype == 'Hand Drawn' :
-            for i in range(self.nROI):
+            elif self.ROItype == 'Hand Drawn' :
                 posCC = ROISelect('ROI %d'%(i+1), os.path.join(self.datadir, self.pngs[self.onsets[0]]), self)
-                ROIs.append(posCC)
-                self.MDI.addSubWindow(posCC)
-        elif self.ROItype == 'Maximum Movement':
-            posCC = MaxMovement('ROI 1', os.path.join(self.datadir, self.pngs[self.onsets[0]]), self)
+            elif self.ROItype == 'Maximum Movement':
+                posCC = MaxMovement('ROI %d'%(i+1), os.path.join(self.datadir, self.pngs[self.onsets[0]]), self)
             ROIs.append(posCC)
-            self.MDI.addSubWindow(posCC)
+            self.MDI.addSubWindow(posCC)               
         plotWin = PlotSignals(ROIs, self)
         self.MDI.addSubWindow(plotWin)
         self.MDI.cascadeSubWindows()
