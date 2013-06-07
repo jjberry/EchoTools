@@ -19,6 +19,7 @@ from colorConfig import ColorConfig
 from plotSignals import PlotSignals
 from ROISelect import ROISelect
 from maxMovement import MaxMovement
+from tmsControl import TMSControl
 
 class ControlPanel(QMainWindow):
     '''
@@ -49,13 +50,14 @@ class ControlPanel(QMainWindow):
         self.getSequence()
         self.current = self.onsets[0] 
         self.ROItype = ''
+        self.ROIs = []
         
         self.createMenu()
         self.createMainFrame()
         self.onDraw()        
 
     def createSubWindows(self):
-        ROIs = []
+        self.ROIs = []
         for i in range(self.nROI):
             if self.ROItype == 'Color Interval':
                 posCC = ColorConfig('ROI %d'%(i+1), 10, 30, os.path.join(self.datadir, self.pngs[self.onsets[0]]), self)
@@ -63,13 +65,13 @@ class ControlPanel(QMainWindow):
                 posCC = ROISelect('ROI %d'%(i+1), os.path.join(self.datadir, self.pngs[self.onsets[0]]), self)
             elif self.ROItype == 'Maximum Movement':
                 posCC = MaxMovement('ROI %d'%(i+1), os.path.join(self.datadir, self.pngs[self.onsets[0]]), self)
-            ROIs.append(posCC)
+            self.ROIs.append(posCC)
             self.MDI.addSubWindow(posCC)               
-        plotWin = PlotSignals(ROIs, self)
+        plotWin = PlotSignals(self.ROIs, self)
         self.MDI.addSubWindow(plotWin)
         self.MDI.cascadeSubWindows()
         for i in range(self.nROI):
-            ROIs[i].show()
+            self.ROIs[i].show()
         plotWin.show()
         
     def createMainFrame(self):
@@ -190,12 +192,18 @@ class ControlPanel(QMainWindow):
             shortcut="Ctrl+O", slot=self.onOpenSequence, 
             tip="Open a sequence of images")
         export_action = self.create_action("&Export", slot=self.onExport,
-            shortcut="Ctrl+S", tip="Export results to file")
+            shortcut="Ctrl+E", tip="Export results to file")
+        save_ROI_action = self.create_action("&Save ROIs", slot=self.onSaveROIs,
+            shortcut="Ctrl+S", tip="Save each ROI to a .npy file")
         quit_action = self.create_action("&Quit", slot=self.onClose, 
             shortcut="Ctrl+Q", tip="Close the application")
         
-        self.add_actions(self.file_menu, (load_action, export_action, None, quit_action))
-
+        self.TMS_menu = self.menuBar().addMenu("&TMS")
+        tms_action = self.create_action("To TMS analysis", slot=self.onTMS)
+        
+        self.add_actions(self.file_menu, (load_action, export_action, save_ROI_action, None, quit_action))
+        self.add_actions(self.TMS_menu, (tms_action, None))
+        
     def add_actions(self, target, actions):
         '''
         Adds the actions to the file menu
@@ -272,7 +280,17 @@ class ControlPanel(QMainWindow):
 
     #########
     # Slots #
-    #########    
+    #########   
+    def onTMS(self):
+        tmsControl = TMSControl(self.ROIs)
+        tmsControl.show()
+        
+    def onSaveROIs(self):
+        for roiSel in self.ROIs:
+            filename = QFileDialog.getSaveFileNameAndFilter(parent=self, caption="Choose a save file name",
+                                                            filter="*.npy")
+            np.save(str(filename[0]), roiSel.ROI)
+         
     def onShow(self):
         if self.ROItype != '':
             self.nROI = int(str(self.nROItext.text()))

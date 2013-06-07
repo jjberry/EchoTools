@@ -48,6 +48,8 @@ class ImageView(QMdiSubWindow):
             img = Image.open(str(self.imgfile))
             img = np.asarray(img)
             self.axes.imshow(img)
+            for roi in self.control.ROIs:
+                self.axes.imshow(roi, cmap='gray', alpha=0.2)
         self.canvas.draw()
 
     def onImageChanged(self, imgname):
