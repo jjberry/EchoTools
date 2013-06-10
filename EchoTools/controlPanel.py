@@ -20,6 +20,7 @@ from plotSignals import PlotSignals
 from ROISelect import ROISelect
 from maxMovement import MaxMovement
 from tmsControl import TMSControl
+from progressWidget import ProgressWidget
 
 class ControlPanel(QMainWindow):
     '''
@@ -236,47 +237,13 @@ class ControlPanel(QMainWindow):
 
     #####################
     #  Internal Methods #
-    #####################
-    def parseOnsetFile(self, fname):
-        '''
-        Parses the plaintext file containing onset definitions
-        '''
-        f = open(fname, 'r').readlines()
-        onsets = []
-        for i in f:
-            if i.strip() != '':
-                onsets.append(int(i.strip()))
-        return np.array(onsets)
-    
+    #####################    
     def getSequence(self):
-        '''
-        Loads an image sequence from .png files and converts them to HSV
-        #--> This is slow <--
-        '''
-        files = sorted(os.listdir(self.datadir))
-        self.pngs = []
-        for i in files:
-            if i[-3:] == 'png':
-                self.pngs.append(i)
-        if os.path.isfile(os.path.join(self.datadir, 'onsets.txt')):
-            self.onsets = self.parseOnsetFile(os.path.join(self.datadir, 'onsets.txt'))
-        else:
-            self.onsets = np.array([117, 247, 382])
-        self.onset = self.framesBefore
-        converted = []
-        nframes = self.onsets.shape[0]*(self.framesBefore+self.framesAfter+1)
-        count = 1
-        for i in self.onsets:
-            currentToken = []
-            start = i-self.framesBefore
-            end = i+self.framesAfter+1
-            for j in range(start, end):
-                print "Loading frame %d, %d of %d total" %(j, count, nframes)
-                H = RGB2HSV(os.path.join(self.datadir, self.pngs[j]))
-                currentToken.append(H)
-                count += 1
-            converted.append(np.array(currentToken))
-        self.sequence = np.array(converted)
+        thread = WorkThread(self.datadir, self.framesBefore, self.framesAfter)
+        prog = ProgressWidget(thread)
+        prog.show()
+        thread.run()
+        self.sequence, self.onsets, self.onset, self.pngs = thread.getVals()
 
     #########
     # Slots #
@@ -413,3 +380,62 @@ class ControlPanel(QMainWindow):
             self.gotoFile.setText(str(self.onsets[0]+1))
             self.onDraw()
             self.sequenceChanged.emit(self.sequence, self.onset)
+
+class WorkThread(QThread):
+    partDone = pyqtSignal(int)
+    allDone = pyqtSignal(bool)
+    
+    def __init__(self, datadir, framesBefore, framesAfter):
+        QThread.__init__(self)
+        self.datadir = datadir
+        self.framesBefore = framesBefore
+        self.framesAfter = framesAfter
+            
+    def run(self):
+        '''
+        Loads an image sequence from .png files and converts them to HSV
+        #--> This is slow <--
+        '''
+        files = sorted(os.listdir(self.datadir))
+        self.pngs = []
+        for i in files:
+            if i[-3:] == 'png':
+                self.pngs.append(i)
+        if os.path.isfile(os.path.join(self.datadir, 'onsets.txt')):
+            self.onsets = self.parseOnsetFile(os.path.join(self.datadir, 'onsets.txt'))
+        else:
+            self.onsets = np.array([117, 247, 382])
+        self.onset = self.framesBefore
+        converted = []
+        nframes = self.onsets.shape[0]*(self.framesBefore+self.framesAfter+1)
+        self.total = nframes
+        count = 1
+        for i in self.onsets:
+            currentToken = []
+            start = i-self.framesBefore
+            end = i+self.framesAfter+1
+            for j in range(start, end):
+                #print "Loading frame %d, %d of %d total" %(j, count, nframes)
+                self.partDone.emit(count)
+                H = RGB2HSV(os.path.join(self.datadir, self.pngs[j]))
+                currentToken.append(H)
+                count += 1
+            converted.append(np.array(currentToken))
+        self.sequence = np.array(converted)
+        self.allDone.emit(True)
+    
+    def getVals(self):
+        return self.sequence, self.onsets, self.onset, self.pngs
+    
+    def parseOnsetFile(self, fname):
+        '''
+        Parses the plaintext file containing onset definitions
+        '''
+        f = open(fname, 'r').readlines()
+        onsets = []
+        for i in f:
+            if i.strip() != '':
+                onsets.append(int(i.strip()))
+        return np.array(onsets)
+ 
+

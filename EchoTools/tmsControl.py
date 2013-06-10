@@ -12,6 +12,8 @@ from PyQt4.QtGui import *
 from multiDirectoryFileDialog import MultiDirectoryFileDialog
 from imageView import ImageView
 from Rgb2Hsv import RGB2HSV
+from barPlot import BarPlot
+from progressWidget import ProgressWidget
 
 class TMSControl(QMainWindow):
     
@@ -39,15 +41,15 @@ class TMSControl(QMainWindow):
         self.MDI = QMdiArea()
         self.view = QListWidget()
         listLabel = QLabel('Check frames with stimulation:')
-        self.calcButton = QPushButton('Calculate')
+        self.showBarPlot = QPushButton('Show Results')
                      
         self.view.itemDoubleClicked.connect(self.onSelect)
-        self.calcButton.clicked.connect(self.onCalculate)
+        self.showBarPlot.clicked.connect(self.onPlot)
         
         vbox = QVBoxLayout()
         vbox.addWidget(listLabel)
         vbox.addWidget(self.view)
-        vbox.addWidget(self.calcButton)
+        vbox.addWidget(self.showBarPlot)
         hbox = QHBoxLayout()
         hbox.addLayout(vbox)
         hbox.addWidget(self.MDI)
@@ -110,32 +112,11 @@ class TMSControl(QMainWindow):
         return action
 
     def getResults(self, stim, nostim):
-        stimval = []
-        nostimval = []        
-        pos = (2, 50)
-        neg = (59, 118)
-        for f in stim:
-            current = []
-            H = RGB2HSV(f)
-            for roi in self.ROIs:
-                maxval = len(roi[roi])
-                posMask = (H>=pos[0])&(H<=pos[1])&roi
-                negMask = (H>=neg[0])&(H<=neg[1])&roi
-                current.extend([float(len(posMask[posMask]))/maxval, float(len(negMask[negMask]))/maxval])
-            stimval.append(np.array(current))
-        for f in nostim:
-            current = []
-            H = RGB2HSV(f)
-            for roi in self.ROIs:
-                maxval = len(roi[roi])
-                posMask = (H>=pos[0])&(H<=pos[1])&roi
-                negMask = (H>=neg[0])&(H<=neg[1])&roi
-                current.extend([float(len(posMask[posMask]))/maxval, float(len(negMask[negMask]))/maxval])
-            nostimval.append(np.array(current))
-        self.stimval = np.array(stimval) 
-        self.nostimval = np.array(nostimval)
-        self.stimfiles = stim
-        self.nostimfiles = nostim
+        thread = WorkThread(stim, nostim, self.ROIs)
+        prog = ProgressWidget(thread)
+        prog.show()
+        thread.run()
+        self.stimval, self.nostimval = thread.getVals()
             
     def onLoadROI(self):
         files = QFileDialog.getOpenFileNamesAndFilter(parent=self, caption="Choose ROI files", filter='*.npy')
@@ -173,15 +154,19 @@ class TMSControl(QMainWindow):
         f = open(filename, 'w')
         f.write('filename,group,')
         for i in range(0, self.stimval.shape[1], 2):
-            f.write('%ROI_%d_pos,ROI_%d_neg,'%((i/2)+1,(i/2)+1))
+            f.write('ROI_%d_pos,ROI_%d_neg,'%((i/2)+1,(i/2)+1))
         f.write('\n')
         for i in range(self.stimval.shape[0]):
             f.write('%s,stim,'%self.stimfiles[i])
             for j in range(0, self.stimval.shape[1], 2):
                 f.write('%0.6f,%0.6f,'%(self.stimval[i,j], self.stimval[i,j+1]))
             f.write('\n')
+        for i in range(self.nostimval.shape[0]):
+            f.write('%s,no_stim,'%self.nostimfiles[i])
+            for j in range(0, self.nostimval.shape[1], 2):
+                f.write('%0.6f,%0.6f,'%(self.nostimval[i,j], self.nostimval[i,j+1]))
+            f.write('\n')
         f.close()
-
 
     def onSelect(self, item):
         idx = self.items.index(item)
@@ -197,9 +182,63 @@ class TMSControl(QMainWindow):
                 stim.append(self.pngs[idx])
             else:
                 nostim.append(self.pngs[idx])
+        self.stimfiles = stim
+        self.nostimfiles = nostim
         self.getResults(stim, nostim)
 
+    def onPlot(self):
+        self.onCalculate()
+        bp = BarPlot(self)
+        self.MDI.addSubWindow(bp)
+        bp.show()
 
+
+class WorkThread(QThread):
+    partDone = pyqtSignal(int)
+    allDone = pyqtSignal(bool)
+    
+    def __init__(self, stim, nostim, ROIs):
+        QThread.__init__(self)
+        self.stim = stim
+        self.nostim = nostim
+        self.total = len(stim)+len(nostim)
+        self.ROIs = ROIs
+    
+    def run(self):
+        stimval = []
+        nostimval = []        
+        pos = (2, 50)
+        neg = (59, 118)
+        count = 0
+        for f in self.stim:
+            count += 1
+            self.partDone.emit(count)
+            current = []
+            H = RGB2HSV(f)
+            for roi in self.ROIs:
+                maxval = len(roi[roi])
+                posMask = (H>=pos[0])&(H<=pos[1])&roi
+                negMask = (H>=neg[0])&(H<=neg[1])&roi
+                current.extend([float(len(posMask[posMask]))/maxval, float(len(negMask[negMask]))/maxval])
+            stimval.append(np.array(current))
+        for f in self.nostim:
+            count += 1
+            self.partDone.emit(count)
+            current = []
+            H = RGB2HSV(f)
+            for roi in self.ROIs:
+                maxval = len(roi[roi])
+                posMask = (H>=pos[0])&(H<=pos[1])&roi
+                negMask = (H>=neg[0])&(H<=neg[1])&roi
+                current.extend([float(len(posMask[posMask]))/maxval, float(len(negMask[negMask]))/maxval])
+            nostimval.append(np.array(current))
+        self.stimval = np.array(stimval) 
+        self.nostimval = np.array(nostimval)
+        self.allDone.emit(True)
+    
+    def getVals(self):
+        return self.stimval, self.nostimval
+                
         
 if __name__ == "__main__":
     app = QApplication(sys.argv)
