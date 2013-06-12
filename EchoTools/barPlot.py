@@ -41,17 +41,26 @@ class BarPlot(QMdiSubWindow):
 
     def onDraw(self):
         self.axes.clear()
-        stmean = self.control.stimval.mean(axis=0)
-        ststd = self.control.stimval.std(axis=0)
-        nstmean = self.control.nostimval.mean(axis=0)
-        nststd = self.control.nostimval.std(axis=0)
-        for i in range(0, stmean.shape[0], 2):
-            posrects = self.axes.bar(np.arange(2), np.array([stmean[i],nstmean[i]]), 0.35, 
-                                  color='red', yerr=np.array([ststd[i], nststd[i]]), bottom=(i/2))
-            negrects = self.axes.bar(np.arange(2)+0.35, np.array([stmean[i+1],nstmean[i+1]]), 0.35, 
-                                  color='blue', yerr=np.array([ststd[i+1], nststd[i+1]]), bottom=(i/2))
-            self.axes.set_xticks(np.arange(2)+0.35)
-            self.axes.set_xticklabels(['Stim', 'No stim'])
+        nROI = (self.control.stimval[0].shape[1])/2
+        for i in range(nROI):
+            stmean = []
+            ststd = []
+            for n in range(len(self.control.stimval)):
+                stmean.extend((list(self.control.stimval[n].mean(axis=0)))[(i*2):(i*2)+2])
+                ststd.extend((list(self.control.stimval[n].std(axis=0)))[(i*2):(i*2)+2])
+            stmean = np.array(stmean)
+            ststd = np.array(stmean)
+            pos = np.arange(0, stmean.shape[0], 2)
+            neg = np.arange(1, stmean.shape[0], 2)
+            posrects = self.axes.bar(np.arange(pos.shape[0]), stmean[pos], 0.35, 
+                                color='red', yerr=ststd[pos], bottom=i)
+            negrects = self.axes.bar(np.arange(pos.shape[0])+0.35, stmean[neg], 0.35, 
+                                color='blue', yerr=ststd[neg], bottom=i)
+        self.axes.set_xticks(np.arange(pos.shape[0])+0.35)
+        labels = []
+        for i in range(len(self.control.conditions)):
+            labels.append(str(self.control.conditions[i][0]))
+        self.axes.set_xticklabels(labels)
         self.axes.hlines(np.arange(0, stmean.shape[0], 2)/2, -0.3 , 2, color="black")
         self.axes.legend((posrects, negrects), ('Pos', 'Neg'))
         self.canvas.draw()
