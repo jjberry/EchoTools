@@ -82,8 +82,14 @@ class TMSControl(QMainWindow):
         quit_action = self.create_action("&Quit", slot=self.close, 
             shortcut="Ctrl+Q", tip="Close the application")
         
+        self.settings_menu = self.menuBar().addMenu("&Settings")
+        save_settings_action = self.create_action("Save Se&ttings",
+            slot=self.onSaveSettings, tip="Save check settings")
+        load_settings_action = self.create_action("&Load Settings",
+            slot=self.onLoadSettings, tip="Load a settings file")
+        
         self.add_actions(self.file_menu, (load_action, load_ROI_action, export_action, None, quit_action))
-
+        self.add_actions(self.settings_menu, (save_settings_action, load_settings_action))
         
     def add_actions(self, target, actions):
         '''
@@ -124,6 +130,31 @@ class TMSControl(QMainWindow):
             prog.show()
             thread.run()
             self.stimval, self.nostimval, self.conditions, self.stimfiles, self.nostimfiles = thread.getVals()
+    
+    def onSaveSettings(self):
+        filename = QFileDialog.getSaveFileName(parent=self, caption="Choose a settings filename", filter='*.txt')
+        f = open(filename, 'w')
+        for item in self.items:
+            idx = self.items.index(item)
+            if item.checkState(0) == Qt.Checked:    
+                f.write('%s,True\n'%self.pngs[idx])          
+            else:
+                f.write('%s,False\n'%self.pngs[idx])
+        f.close()
+    
+    def onLoadSettings(self):
+        filename = QFileDialog.getOpenFileName(parent=self, caption="Open a settings file", filter='*.txt')
+        f = open(filename, 'r').readlines()
+        for i in range(len(f)):   
+            l = f[i][:-1].split(',')
+            png = l[0]
+            checked = l[1]
+            if checked == 'True':
+                try:
+                    idx = self.pngs.index(png)
+                    self.items[idx].setCheckState(0, Qt.Checked)
+                except ValueError:
+                    pass
             
     def onLoadROI(self):
         files = QFileDialog.getOpenFileNamesAndFilter(parent=self, caption="Choose ROI files", filter='*.npy')
@@ -186,9 +217,12 @@ class TMSControl(QMainWindow):
         f.close()
 
     def onSelect(self, item):
-        idx = self.items.index(item)
-        self.imgfile = self.pngs[idx]
-        self.imageChanged.emit(str(self.imgfile))
+        try:
+            idx = self.items.index(item)
+            self.imgfile = self.pngs[idx]
+            self.imageChanged.emit(str(self.imgfile))
+        except ValueError:
+            pass
         
     def onCalculate(self):
         stim = []

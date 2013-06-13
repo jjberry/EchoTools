@@ -61,7 +61,7 @@ class BarPlot(QMdiSubWindow):
         for i in range(len(self.control.conditions)):
             labels.append(str(self.control.conditions[i][0]))
         self.axes.set_xticklabels(labels)
-        self.axes.hlines(np.arange(0, stmean.shape[0], 2)/2, -0.3 , 2, color="black")
+        self.axes.hlines(range(nROI+1), -0.3 , stmean.shape[0]/2, color="black")
         self.axes.legend((posrects, negrects), ('Pos', 'Neg'))
         self.canvas.draw()
         
