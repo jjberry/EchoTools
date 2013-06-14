@@ -41,9 +41,8 @@ class TMSControl(QMainWindow):
         self.mainFrame = QWidget()
         self.MDI = QMdiArea()
         self.view = QTreeWidget()
-        self.view.setColumnCount(2)
-        self.view.setHeaderLabels(['Filename', 'Condition'])
-        self.view.header().setResizeMode(0, QHeaderView.Stretch)
+        self.view.setColumnCount(4)
+        self.view.setHeaderLabels(['Filename', 'Condition', 'TMS', 'Baseline'])
         listLabel = QLabel('Check frames with stimulation:')
         self.showBarPlot = QPushButton('Show Results')
                      
@@ -136,10 +135,14 @@ class TMSControl(QMainWindow):
         f = open(filename, 'w')
         for item in self.items:
             idx = self.items.index(item)
-            if item.checkState(0) == Qt.Checked:    
-                f.write('%s,True\n'%self.pngs[idx])          
+            if item.checkState(2) == Qt.Checked:    
+                f.write('%s,True,'%self.pngs[idx])          
             else:
-                f.write('%s,False\n'%self.pngs[idx])
+                f.write('%s,False,'%self.pngs[idx])
+            if item.checkState(3) == Qt.Checked:
+                f.write('True\n')
+            else:
+                f.write('False\n')
         f.close()
     
     def onLoadSettings(self):
@@ -148,11 +151,21 @@ class TMSControl(QMainWindow):
         for i in range(len(f)):   
             l = f[i][:-1].split(',')
             png = l[0]
-            checked = l[1]
-            if checked == 'True':
+            TMS = l[1]
+            try:
+                baseline = l[2]
+            except IndexError:
+                baseline = 'False'
+            if TMS == 'True':
                 try:
                     idx = self.pngs.index(png)
-                    self.items[idx].setCheckState(0, Qt.Checked)
+                    self.items[idx].setCheckState(2, Qt.Checked)
+                except ValueError:
+                    pass
+            if baseline == 'True':
+                try:
+                    idx = self.pngs.index(png)
+                    self.items[idx].setCheckState(3, Qt.Checked)
                 except ValueError:
                     pass
             
@@ -189,8 +202,13 @@ class TMSControl(QMainWindow):
                         item = QTreeWidgetItem(topitem, [f, condition])
                         item.setText(0, f)
                         item.setText(1, condition)
-                        item.setCheckState(0, Qt.Unchecked)
+                        item.setCheckState(2, Qt.Unchecked)
+                        item.setCheckState(3, Qt.Unchecked)
                         self.items.append(item)
+            self.view.setColumnWidth(0, 200)
+            self.view.setColumnWidth(1, 75)
+            self.view.setColumnWidth(2, 50)
+            self.view.setColumnWidth(3, 50)
         except TypeError:
             pass
                     
@@ -229,9 +247,9 @@ class TMSControl(QMainWindow):
         nostim = []
         for item in self.items:
             idx = self.items.index(item)
-            if item.checkState(0) == Qt.Checked:              
+            if item.checkState(2) == Qt.Checked:              
                 stim.append([self.pngs[idx], item.text(1)])
-            else:
+            if item.checkState(3) == Qt.Checked:
                 nostim.append([self.pngs[idx], item.text(1)])
         self.getResults(stim, nostim)
 
