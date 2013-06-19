@@ -149,7 +149,7 @@ class ColorConfig(QMdiSubWindow):
         to calculate the average.
         '''
         npix = len(self.valid[self.valid])
-        threshold = npix * 0.1
+        threshold = 0 #npix * 0.01 #large threshold causes nans 
         centers = []
         for i in range(self.control.sequence.shape[0]):
             for j in range(self.control.sequence.shape[1]):
