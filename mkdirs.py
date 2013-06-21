@@ -14,7 +14,7 @@ def main(ID, txtfile):
             x = f[i][:-1].split('\t')
             name = '%02d_%s_%s' % (int(x[0]), x[2][:-4], dicoms[i][-2:])
             os.mkdir(name)
-            cmd = ['"/c/Program Files/XMedCon/bin/medcon.exe"', '-f', dicoms[i], '-c', 'png', '-o', name+'/'+dicoms[i]]
+            cmd = ['medcon', '-f', dicoms[i], '-c', 'png', '-o', name+'/'+dicoms[i]]
             print ' '.join(cmd)
             o.write(' '.join(cmd)+'\n')
     o.close()
