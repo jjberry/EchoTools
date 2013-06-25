@@ -15,6 +15,8 @@ from imageView import ImageView
 from Rgb2Hsv import RGB2HSV
 from barPlot import BarPlot
 from progressWidget import ProgressWidget
+from tmsROI import TmsROI
+
 
 class TMSControl(QMainWindow):
     
@@ -80,6 +82,8 @@ class TMSControl(QMainWindow):
             shortcut="Ctrl+S", tip="Export results to file")
         quit_action = self.create_action("&Quit", slot=self.close, 
             shortcut="Ctrl+Q", tip="Close the application")
+        roi_from_img_action = self.create_action("&ROI from images", slot=self.onROIfromImg,
+            tip="Use TMS images to define an ROI")
         
         self.settings_menu = self.menuBar().addMenu("&Settings")
         save_settings_action = self.create_action("Save Se&ttings",
@@ -87,7 +91,7 @@ class TMSControl(QMainWindow):
         load_settings_action = self.create_action("&Load Settings",
             slot=self.onLoadSettings, tip="Load a settings file")
         
-        self.add_actions(self.file_menu, (load_action, load_ROI_action, export_action, None, quit_action))
+        self.add_actions(self.file_menu, (load_action, load_ROI_action, roi_from_img_action, export_action, None, quit_action))
         self.add_actions(self.settings_menu, (save_settings_action, load_settings_action))
         
     def add_actions(self, target, actions):
@@ -129,6 +133,17 @@ class TMSControl(QMainWindow):
             prog.show()
             thread.run()
             self.stimval, self.nostimval, self.conditions, self.stimfiles, self.nostimfiles = thread.getVals()
+
+    def onROIfromImg(self):
+        stim = []
+        for item in self.items:
+            idx = self.items.index(item)
+            if item.checkState(2) == Qt.Checked:              
+                stim.append(self.pngs[idx])
+        control = TmsROI(stim, self)
+        self.MDI.addSubWindow(control)
+        control.show()
+        
     
     def onSaveSettings(self):
         filename = QFileDialog.getSaveFileName(parent=self, caption="Choose a settings filename", filter='*.txt')
