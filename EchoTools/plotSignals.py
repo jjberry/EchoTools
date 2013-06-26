@@ -40,6 +40,8 @@ class PlotSignals(QMdiSubWindow):
         self.TTEST = True
         
         self.createMainFrame()
+        if np.any(self.ROIs[0].ROI):
+            self.onDraw()
 
     def createMainFrame(self):
         '''

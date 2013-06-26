@@ -19,6 +19,7 @@ class TmsROI(QMdiSubWindow):
     sequenceChanged = pyqtSignal(np.ndarray, int)
     closeSignal = pyqtSignal()
     exportData = pyqtSignal(str)
+    ROISignal = pyqtSignal()
 
     def __init__(self, stimfiles, tmscontrol, parent=None):
         QMdiSubWindow.__init__(self, parent)
@@ -71,6 +72,9 @@ class TmsROI(QMdiSubWindow):
         self.setWidget(self.mainFrame)
  
     def createSubWindows(self):
+        #if len(self.ROIs)>0:
+        #    for i in range(len(self.ROIs)):
+        #        self.ROIs[i].close()
         self.ROIs = []
         for i in range(self.nROI):
             if self.ROItype == 'Color Interval':
@@ -80,11 +84,11 @@ class TmsROI(QMdiSubWindow):
             elif self.ROItype == 'Maximum Movement':
                 posCC = MaxMovement('ROI %d'%(i+1), self.stimfiles[0], self)
             self.ROIs.append(posCC)
-            self.tmscontrol.MDI.addSubWindow(posCC)               
+            self.tmscontrol.MDI.addSubWindow(posCC)  
+            self.ROIs[i].plotSignal.connect(self.onROIchanged)            
         self.tmscontrol.MDI.cascadeSubWindows()
         for i in range(self.nROI):
             self.ROIs[i].show()
- 
         
     def processImages(self):
         thread = WorkThread(self.stimfiles)
@@ -93,6 +97,9 @@ class TmsROI(QMdiSubWindow):
         thread.run()
         self.sequence, self.onset, self.framesBefore, self.framesAfter = thread.getVals()
         
+    def onROIchanged(self):
+        self.ROISignal.emit()    
+        
     def onCombo(self, text):
         self.ROItype = str(text)
 
@@ -100,6 +107,7 @@ class TmsROI(QMdiSubWindow):
         if self.ROItype != '':
             self.nROI = int(str(self.nROItext.text()))
             self.createSubWindows()
+            self.ROISignal.emit()
   
     def onRadiusChanged(self):
         '''

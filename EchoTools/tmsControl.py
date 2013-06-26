@@ -5,10 +5,10 @@ Created on Jun 6, 2013
 '''
 import os, sys
 import numpy as np
-import Image
 import operator
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
+from scipy import ndimage
 
 from multiDirectoryFileDialog import MultiDirectoryFileDialog
 from imageView import ImageView
@@ -16,7 +16,7 @@ from Rgb2Hsv import RGB2HSV
 from barPlot import BarPlot
 from progressWidget import ProgressWidget
 from tmsROI import TmsROI
-
+from activationView import ActivationView
 
 class TMSControl(QMainWindow):
     
@@ -132,7 +132,8 @@ class TMSControl(QMainWindow):
             prog = ProgressWidget(thread)
             prog.show()
             thread.run()
-            self.stimval, self.nostimval, self.conditions, self.stimfiles, self.nostimfiles = thread.getVals()
+            self.stimval, self.nostimval, self.conditions, self.stimfiles, self.nostimfiles, \
+                self.stimpx, self.nostimpx, self.stimcenter, self.nostimcenter = thread.getVals()
 
     def onROIfromImg(self):
         stim = []
@@ -140,10 +141,17 @@ class TMSControl(QMainWindow):
             idx = self.items.index(item)
             if item.checkState(2) == Qt.Checked:              
                 stim.append(self.pngs[idx])
-        control = TmsROI(stim, self)
-        self.MDI.addSubWindow(control)
-        control.show()
-        
+        self.control = TmsROI(stim, self)
+        self.MDI.addSubWindow(self.control)
+        self.control.ROISignal.connect(self.onROIchanged)
+        self.control.show()
+    
+    def onROIchanged(self):
+        self.ROIs = []
+        for i in range(len(self.control.ROIs)):
+            self.ROIs.append(self.control.ROIs[i].ROI)
+            self.ROInames.append('ROI_%d'%(i+1))
+        self.imageChanged.emit(self.imgfile)
     
     def onSaveSettings(self):
         filename = QFileDialog.getSaveFileName(parent=self, caption="Choose a settings filename", filter='*.txt')
@@ -163,6 +171,9 @@ class TMSControl(QMainWindow):
     def onLoadSettings(self):
         filename = QFileDialog.getOpenFileName(parent=self, caption="Open a settings file", filter='*.txt')
         f = open(filename, 'r').readlines()
+        basepngs = []
+        for i in range(len(self.pngs)):
+            basepngs.append(os.path.basename(self.pngs[i]))
         for i in range(len(f)):   
             l = f[i][:-1].split(',')
             png = l[0]
@@ -173,13 +184,13 @@ class TMSControl(QMainWindow):
                 baseline = 'False'
             if TMS == 'True':
                 try:
-                    idx = self.pngs.index(png)
+                    idx = basepngs.index(os.path.basename(png))
                     self.items[idx].setCheckState(2, Qt.Checked)
                 except ValueError:
                     pass
             if baseline == 'True':
                 try:
-                    idx = self.pngs.index(png)
+                    idx = basepngs.index(os.path.basename(png))
                     self.items[idx].setCheckState(3, Qt.Checked)
                 except ValueError:
                     pass
@@ -231,19 +242,21 @@ class TMSControl(QMainWindow):
         filename = QFileDialog.getSaveFileName(parent=self, caption="Choose a save file name")
         self.onCalculate()
         f = open(filename, 'w')
-        f.write('filename,condition,stim,')
+        f.write('filename,condition,stim,center_x,center_y,')
         for i in range(0, self.stimval[0].shape[1], 2):
             f.write('ROI_%d_pos,ROI_%d_neg,'%((i/2)+1,(i/2)+1))
         f.write('\n')
         for n in range(len(self.stimval)):
             for i in range(self.stimval[n].shape[0]):
-                f.write('%s,%s,stim,'%(self.stimfiles[n][i], str(self.conditions[n][0])))
+                f.write('%s,%s,stim,%0.6f,%0.6f,'%(self.stimfiles[n][i], str(self.conditions[n][0]),
+                                             self.stimcenter[n][i][0],self.stimcenter[n][i][1]))
                 for j in range(0, self.stimval[n].shape[1], 2):
                     f.write('%0.6f,%0.6f,'%(self.stimval[n][i,j], self.stimval[n][i,j+1]))
                 f.write('\n')
         for n in range(len(self.nostimval)):
             for i in range(self.nostimval[n].shape[0]):
-                f.write('%s,%s,no_stim,'%(self.nostimfiles[n][i], str(self.conditions[n][0])))
+                f.write('%s,%s,no_stim,%0.6f,%0.6f,'%(self.nostimfiles[n][i], str(self.conditions[n][0]),
+                                                self.nostimcenter[n][i][0],self.nostimcenter[n][i][1]))
                 for j in range(0, self.nostimval[n].shape[1], 2):
                     f.write('%0.6f,%0.6f,'%(self.nostimval[n][i,j], self.nostimval[n][i,j+1]))
                 f.write('\n')
@@ -273,6 +286,9 @@ class TMSControl(QMainWindow):
         bp = BarPlot(self)
         self.MDI.addSubWindow(bp)
         bp.show()
+        av = ActivationView(control=self)
+        self.MDI.addSubWindow(av)
+        av.show()
 
 class WorkThread(QThread):
     partDone = pyqtSignal(int)
@@ -284,6 +300,23 @@ class WorkThread(QThread):
         self.nostim = nostim
         self.total = len(stim)+len(nostim)
         self.ROIs = ROIs
+
+    def convertScale(self, H):
+        '''
+        This takes the relevant colors on the HSV scale (determined by looking at the
+        positive and negative color bars in the images) and converts them to a more
+        meaningful scale, i.e. blues & greens (negative) are now in about (-1, -60) and 
+        oranges & yellows (positive) in (1, 60). Other colors are zeros
+        '''
+        pos = (2,30)
+        neg = (60,118)
+        converted = np.zeros(H.shape)
+        nmask = (H>=neg[0])&(H<=neg[1])
+        pmask = (H>=pos[0])&(H<=pos[1])
+        converted[nmask] = -(119 - H[nmask])
+        converted[pmask] = H[pmask] * 2
+        
+        return converted
 
     def getConditions(self):
         conditions = {}
@@ -300,17 +333,28 @@ class WorkThread(QThread):
     def run(self):
         stimval = []   
         stimfiles = [] 
+        stimpx = []
+        stimcenter = []
         nostimval = []
-        nostimfiles = []    
+        nostimfiles = []
+        nostimpx = []
+        nostimcenter = []    
         pos = (2, 50)
         neg = (59, 118)
         count = 0
+        valid = np.load('validinds.npy')
+        self.valid = valid.reshape((600,800), order='F')
+        self.notvalid = np.logical_not(self.valid)        
         conditions = self.getConditions()
         for i in range(len(conditions.keys())):
             stimval.append([])
             stimfiles.append([])
+            stimpx.append([])
+            stimcenter.append([])
             nostimval.append([])
             nostimfiles.append([])
+            nostimpx.append([])
+            nostimcenter.append([])
         for f in self.stim:
             count += 1
             self.partDone.emit(count)
@@ -323,6 +367,11 @@ class WorkThread(QThread):
                 current.extend([float(len(posMask[posMask]))/maxval, float(len(negMask[negMask]))/maxval])
             stimval[conditions[f[1]]].append(current)
             stimfiles[conditions[f[1]]].append(f[0])
+            H[self.notvalid] = (np.zeros_like(H))[self.notvalid]
+            center = ndimage.measurements.center_of_mass(H)
+            stimcenter[conditions[f[1]]].append(center)
+            converted = self.convertScale(H)
+            stimpx[conditions[f[1]]].append(converted)
         for i in range(len(stimval)):
             stimval[i] = np.array(stimval[i])
         for f in self.nostim:
@@ -337,6 +386,12 @@ class WorkThread(QThread):
                 current.extend([float(len(posMask[posMask]))/maxval, float(len(negMask[negMask]))/maxval])
             nostimval[conditions[f[1]]].append(current)
             nostimfiles[conditions[f[1]]].append(f[0])
+            H[self.notvalid] = (np.zeros_like(H))[self.notvalid]
+            center = ndimage.measurements.center_of_mass(H)
+            nostimcenter[conditions[f[1]]].append(center)
+            converted = self.convertScale(H)
+            nostimpx[conditions[f[1]]].append(converted)
+
         for i in range(len(nostimval)):
             nostimval[i] = np.array(nostimval[i])
         self.stimval = stimval 
@@ -344,13 +399,18 @@ class WorkThread(QThread):
         self.conditions = conditions
         self.stimfiles = stimfiles
         self.nostimfiles = nostimfiles
+        self.stimpx = stimpx
+        self.nostimpx = nostimpx
+        self.stimcenter = stimcenter
+        self.nostimcenter = nostimcenter
         self.allDone.emit(True)
 
     def sortDict(self, dic):
         return sorted(dic.iteritems(), key=operator.itemgetter(1))
     
     def getVals(self):
-        return self.stimval, self.nostimval, self.sortDict(self.conditions), self.stimfiles, self.nostimfiles
+        return self.stimval, self.nostimval, self.sortDict(self.conditions), self.stimfiles, self.nostimfiles, \
+            self.stimpx, self.nostimpx, self.stimcenter, self.nostimcenter
                        
 if __name__ == "__main__":
     app = QApplication(sys.argv)
