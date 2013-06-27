@@ -83,15 +83,23 @@ class ActivationView(QMdiSubWindow):
         self.normPxMeans = []
         for n in range(len(self.control.stimcenter)):
             self.normPxMeans.append(self.groupPxMeans[n] - self.grandAve)
-        items = []
+        imageNames = []
+        images = []
+        images.append(self.grandAve)
         for i in range(len(self.control.conditions)):
-            items.append(self.control.conditions[i][0])
-            items.append(self.control.conditions[i][0]+'_Norm')
-        self.backgroundCombo.addItems(items)
+            imageNames.append(self.control.conditions[i][0])
+            imageNames.append(self.control.conditions[i][0]+'_Norm')
+            images.append(self.groupPxMeans[i])
+            images.append(self.normPxMeans[i])
+        self.backgroundCombo.addItems(imageNames)
+        imageNames.insert(0, 'Grand Average')
+        self.imageNames = imageNames
+        self.images = images
 
     def onDraw(self):
         self.axes.clear()
-        self.axes.imshow(self.grandAve, vmin=-self.scale, vmax=self.scale)
+        idx = self.imageNames.index(self.background)
+        self.axes.imshow(self.images[idx], vmin=-self.scale, vmax=self.scale)
         if self.showCenters:
             handlers = []
             labels = []

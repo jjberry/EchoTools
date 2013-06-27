@@ -75,11 +75,15 @@ class TMSControl(QMainWindow):
         load_action = self.create_action("&Open Images",
             shortcut="Ctrl+O", slot=self.onOpen, 
             tip="Open a set of image directories")
+        save_ROI_action = self.create_action("&Save ROIs", slot=self.onSaveROIs,
+            shortcut="Ctrl+R", tip="Save each ROI to a .npy file")
         load_ROI_action = self.create_action("&Load ROI",
             shortcut="Ctrl+L", slot=self.onLoadROI,
             tip="Load ROIs from files")
-        export_action = self.create_action("&Export", slot=self.onExport,
+        export_action = self.create_action("&Export Results", slot=self.onExport,
             shortcut="Ctrl+S", tip="Export results to file")
+        colormap_action = self.create_action("Export &Activations", slot=self.onExportActivations,
+            shortcut="Ctrl+C", tip="Export activation images to csv files")
         quit_action = self.create_action("&Quit", slot=self.close, 
             shortcut="Ctrl+Q", tip="Close the application")
         roi_from_img_action = self.create_action("&ROI from images", slot=self.onROIfromImg,
@@ -91,7 +95,8 @@ class TMSControl(QMainWindow):
         load_settings_action = self.create_action("&Load Settings",
             slot=self.onLoadSettings, tip="Load a settings file")
         
-        self.add_actions(self.file_menu, (load_action, load_ROI_action, roi_from_img_action, export_action, None, quit_action))
+        self.add_actions(self.file_menu, (load_action, save_ROI_action, load_ROI_action, roi_from_img_action, 
+                                          None, export_action, colormap_action, None, quit_action))
         self.add_actions(self.settings_menu, (save_settings_action, load_settings_action))
         
     def add_actions(self, target, actions):
@@ -134,6 +139,16 @@ class TMSControl(QMainWindow):
             thread.run()
             self.stimval, self.nostimval, self.conditions, self.stimfiles, self.nostimfiles, \
                 self.stimpx, self.nostimpx, self.stimcenter, self.nostimcenter = thread.getVals()
+
+    def onExportActivations(self):
+        dirname = QFileDialog.getExistingDirectory(parent=self, caption="Choose a directory for export")
+        dirname = str(dirname)
+        if dirname != '':
+            self.onCalculate()
+            for n in range(len(self.stimfiles)):
+                for i in range(len(self.stimfiles[n])):
+                    filename = (os.path.basename(self.stimfiles[n][i]))[:-3] + 'csv'
+                    np.savetxt(os.path.join(dirname, filename), self.stimpx[n][i], fmt='%d', delimiter=',')
 
     def onROIfromImg(self):
         stim = []
@@ -204,6 +219,12 @@ class TMSControl(QMainWindow):
             self.ROIs.append(ROI)
             self.ROInames.append(f[:-4])
         self.imageChanged.emit(self.imgfile)
+
+    def onSaveROIs(self):
+        for roiSel in self.ROIs:
+            filename = QFileDialog.getSaveFileNameAndFilter(parent=self, caption="Choose a save file name",
+                                                            filter="*.npy")
+            np.save(str(filename[0]), roiSel.ROI)
 
     def onOpen(self):
         fd = MultiDirectoryFileDialog()
