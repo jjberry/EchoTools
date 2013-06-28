@@ -128,7 +128,10 @@ class WorkThread(QThread):
     def __init__(self, filenames):
         QThread.__init__(self)
         self.filenames = filenames
-            
+        valid = np.load('validinds.npy')
+        self.valid = valid.reshape((600,800), order='F')
+        self.notvalid = np.logical_not(self.valid)
+           
     def run(self):
         '''
         Loads an image sequence from .png files and converts them to HSV
@@ -141,6 +144,7 @@ class WorkThread(QThread):
             #print "Loading frame %d, %d of %d total" %(j, count, nframes)
             self.partDone.emit(j+1)
             H = RGB2HSV(self.filenames[j])
+            H[self.notvalid] = (np.zeros_like(H))[self.notvalid]
             converted.append(H)
         converted = np.array(converted)
         self.sequence = converted.reshape((1,converted.shape[0],converted.shape[1],converted.shape[2]))

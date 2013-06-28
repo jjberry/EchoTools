@@ -221,11 +221,12 @@ class TMSControl(QMainWindow):
         self.imageChanged.emit(self.imgfile)
 
     def onSaveROIs(self):
-        for roiSel in self.ROIs:
+        for roi in self.ROIs:
             filename = QFileDialog.getSaveFileNameAndFilter(parent=self, caption="Choose a save file name",
                                                             filter="*.npy")
-            np.save(str(filename[0]), roiSel.ROI)
-
+            np.save(str(filename[0]), roi)
+            np.savetxt(str(filename[0][:-3]+'csv'), roi, fmt='%d', delimiter=',')
+            
     def onOpen(self):
         fd = MultiDirectoryFileDialog()
         fd.exec_()
